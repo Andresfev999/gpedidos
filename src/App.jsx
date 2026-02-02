@@ -1,20 +1,54 @@
 import { useState } from 'react';
-import { Package, Plus, DollarSign, TrendingUp, Search, Edit, Trash2 } from 'lucide-react';
+import { Package, Plus, DollarSign, TrendingUp, Search, Edit, Trash2, Printer } from 'lucide-react';
 import { useData } from './context/DataContext';
 import { formatCurrency } from './utils/format';
 import OrderModal from './components/OrderModal';
+import InvoiceModal from './components/InvoiceModal';
 import './index.css';
 
 function App() {
   const { orders, addOrder, updateOrder, deleteOrder, stats } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [selectedOrders, setSelectedOrders] = useState(new Set());
   const [editingOrder, setEditingOrder] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('Todos');
+  const [isGrouped, setIsGrouped] = useState(false);
 
-  const filteredOrders = orders.filter(
-    order => order.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.product.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // 1. Filter
+  const filteredOrders = orders.filter(order => {
+    const matchesSearch = order.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.product.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'Todos' || order.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  // 2. Sort (Group)
+  const displayedOrders = [...filteredOrders].sort((a, b) => {
+    if (isGrouped) {
+      return a.client.localeCompare(b.client);
+    }
+    return 0; // Default order
+  });
+
+  const toggleOrderSelection = (id) => {
+    const newSelection = new Set(selectedOrders);
+    if (newSelection.has(id)) {
+      newSelection.delete(id);
+    } else {
+      newSelection.add(id);
+    }
+    setSelectedOrders(newSelection);
+  };
+
+  const toggleAllSelection = () => {
+    if (selectedOrders.size === displayedOrders.length && displayedOrders.length > 0) {
+      setSelectedOrders(new Set());
+    } else {
+      setSelectedOrders(new Set(displayedOrders.map(o => o.id)));
+    }
+  };
 
   const handleSave = (orderData) => {
     if (editingOrder) {
@@ -90,6 +124,12 @@ function App() {
           trend="Costo por comprar"
         />
         <StatCard
+          title="Inversión Histórica"
+          value={formatCurrency(stats.totalInvestment)}
+          icon={<DollarSign size={24} color="#60a5fa" />}
+          trend="Total Invertido"
+        />
+        <StatCard
           title="Margen Promedio"
           value={stats.totalProfit > 0 ? ((stats.totalProfit / orders.reduce((acc, o) => acc + o.price, 0)) * 100).toFixed(1) + '%' : '0%'}
           icon={<TrendingUp size={24} color="#ec4899" />}
@@ -101,6 +141,57 @@ function App() {
       <div className="glass-panel" style={{ padding: '1.5rem', minHeight: '500px' }}>
         <div className="flex-between" style={{ marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
           <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Pedidos Recientes</h2>
+
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {['Todos', 'Pendiente por comprar', 'Por entregar', 'Entregado', 'Pagado'].map(status => (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(status)}
+                className="glass-button"
+                style={{
+                  background: statusFilter === status ? 'var(--primary)' : 'rgba(99, 102, 241, 0.1)',
+                  color: statusFilter === status ? 'white' : 'var(--primary)',
+                  fontSize: '0.85rem',
+                  padding: '0.4rem 0.8rem',
+                  border: statusFilter === status ? '1px solid var(--primary)' : '1px solid rgba(99, 102, 241, 0.2)'
+                }}
+              >
+                {status}
+              </button>
+            ))}
+
+            <div style={{ width: '1px', height: '24px', background: 'var(--glass-border)', margin: '0 0.5rem' }}></div>
+
+            <button
+              onClick={() => setIsGrouped(!isGrouped)}
+              className="glass-button"
+              style={{
+                background: isGrouped ? 'rgba(236, 72, 153, 0.2)' : 'rgba(99, 102, 241, 0.1)',
+                borderColor: isGrouped ? 'var(--secondary)' : 'rgba(99, 102, 241, 0.2)',
+                color: isGrouped ? 'var(--secondary)' : 'var(--primary)'
+              }}
+            >
+              <Package size={16} />
+              {isGrouped ? 'Agrupado por Cliente' : 'Agrupar por Cliente'}
+            </button>
+
+            {selectedOrders.size > 0 && (
+              <button
+                onClick={() => setIsInvoiceModalOpen(true)}
+                className="glass-button"
+                style={{
+                  background: 'rgba(16, 185, 129, 0.1)',
+                  borderColor: 'rgba(16, 185, 129, 0.2)',
+                  color: '#34d399',
+                  marginLeft: '0.5rem'
+                }}
+              >
+                <Printer size={16} />
+                Generar Factura ({selectedOrders.size})
+              </button>
+            )}
+          </div>
+
           <div style={{ position: 'relative', width: '300px' }}>
             <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
             <input
@@ -119,6 +210,14 @@ function App() {
           <table>
             <thead>
               <tr>
+                <th style={{ width: '40px' }}>
+                  <input
+                    type="checkbox"
+                    checked={displayedOrders.length > 0 && selectedOrders.size === displayedOrders.length}
+                    onChange={toggleAllSelection}
+                    style={{ cursor: 'pointer' }}
+                  />
+                </th>
                 <th>Cliente</th>
                 <th>Producto</th>
                 <th>Costo</th>
@@ -129,15 +228,23 @@ function App() {
               </tr>
             </thead>
             <tbody>
-              {filteredOrders.length > 0 ? (
-                filteredOrders.map(order => (
-                  <tr key={order.id}>
+              {displayedOrders.length > 0 ? (
+                displayedOrders.map(order => (
+                  <tr key={order.id} style={{ background: selectedOrders.has(order.id) ? 'rgba(99, 102, 241, 0.1)' : 'transparent' }}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedOrders.has(order.id)}
+                        onChange={() => toggleOrderSelection(order.id)}
+                        style={{ cursor: 'pointer' }}
+                      />
+                    </td>
                     <td style={{ fontWeight: 500 }}>{order.client}</td>
                     <td>{order.product}</td>
                     <td style={{ color: 'var(--text-muted)' }}>{formatCurrency(order.cost)}</td>
                     <td>
                       {formatCurrency(order.price)}
-                      {order.price - (order.paid_amount || 0) > 0 && (
+                      {order.price - (order.paid_amount || 0) > 0 && order.status !== 'Pagado' && (
                         <div style={{ fontSize: '0.75rem', color: 'var(--danger)', marginTop: '2px' }}>
                           Deben: {formatCurrency(order.price - (order.paid_amount || 0))}
                         </div>
@@ -178,7 +285,7 @@ function App() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
                     No hay pedidos que coincidan con tu búsqueda
                   </td>
                 </tr>
@@ -194,6 +301,16 @@ function App() {
         onSave={handleSave}
         initialData={editingOrder}
       />
+
+      <InvoiceModal
+        isOpen={isInvoiceModalOpen}
+        onClose={() => setIsInvoiceModalOpen(false)}
+        orders={orders.filter(o => selectedOrders.has(o.id))}
+      />
+
+      <footer style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+        GPedidos v1.1 - Inversión Histórica
+      </footer>
     </>
   );
 }

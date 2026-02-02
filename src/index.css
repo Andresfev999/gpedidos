@@ -169,8 +169,79 @@ tr:hover td {
   border: 1px solid rgba(245, 158, 11, 0.2);
 }
 
+
 .badge-danger {
   background: rgba(239, 68, 68, 0.15);
   color: #f87171;
   border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+/* Modal Overlay */
+.invoice-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.invoice-modal-content {
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 2rem;
+  background: #1e1b4b;
+  /* Dark bg for screen */
+}
+
+.printable-area {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  color: black;
+}
+
+/* Print Styles */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .invoice-modal-overlay,
+  .invoice-modal-content {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: auto;
+    background: white;
+    padding: 0;
+    box-shadow: none;
+    border: none;
+    display: block;
+  }
+
+  .printable-area,
+  .printable-area * {
+    visibility: visible;
+  }
+
+  .printable-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+  }
+
+  .no-print {
+    display: none !important;
+  }
 }

@@ -94,6 +94,7 @@ export const DataProvider = ({ children }) => {
         totalProfit: orders.reduce((acc, o) => acc + (Number(o.price) - Number(o.cost)), 0),
         activeOrders: orders.filter(o => o.status === 'Pendiente por comprar' || o.status === 'Por entregar').length,
         pendingInvestment: orders.filter(o => o.status === 'Pendiente por comprar').reduce((acc, o) => acc + Number(o.cost), 0),
+        totalInvestment: orders.reduce((acc, o) => acc + Number(o.cost), 0),
         totalOrders: orders.length
     };
 
